@@ -13,7 +13,7 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	kubernetes "k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	archon "kubeup.com/archon/pkg/clientset"
 )
 
 func Provider() terraform.ResourceProvider {
@@ -92,18 +92,10 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
-			"kubernetes_config_map":                resourceKubernetesConfigMap(),
-			"kubernetes_horizontal_pod_autoscaler": resourceKubernetesHorizontalPodAutoscaler(),
-			"kubernetes_limit_range":               resourceKubernetesLimitRange(),
-			"kubernetes_namespace":                 resourceKubernetesNamespace(),
-			"kubernetes_persistent_volume":         resourceKubernetesPersistentVolume(),
-			"kubernetes_persistent_volume_claim":   resourceKubernetesPersistentVolumeClaim(),
-			"kubernetes_pod":                       resourceKubernetesPod(),
-			"kubernetes_replication_controller":    resourceKubernetesReplicationController(),
-			"kubernetes_resource_quota":            resourceKubernetesResourceQuota(),
-			"kubernetes_secret":                    resourceKubernetesSecret(),
-			"kubernetes_service":                   resourceKubernetesService(),
-			"kubernetes_service_account":           resourceKubernetesServiceAccount(),
+			"archon_user":          resourceArchonUser(),
+			"archon_network":       resourceArchonNetwork(),
+			"archon_instance":      resourceArchonInstance(),
+			"archon_instancegroup": resourceArchonInstanceGroup(),
 		},
 		ConfigureFunc: providerConfigure,
 	}
@@ -144,7 +136,7 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 		cfg.KeyData = bytes.NewBufferString(v.(string)).Bytes()
 	}
 
-	k, err := kubernetes.NewForConfig(cfg)
+	k, err := archon.NewForConfig(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to configure: %s", err)
 	}
