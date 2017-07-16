@@ -3,7 +3,9 @@ package kubernetes
 import (
 	"fmt"
 	"log"
+	"time"
 
+	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/helper/schema"
 	"k8s.io/apimachinery/pkg/api/errors"
 	pkgApi "k8s.io/apimachinery/pkg/types"
@@ -53,6 +55,32 @@ func resourceArchonInstanceCreate(d *schema.ResourceData, meta interface{}) erro
 	}
 	log.Printf("[INFO] Submitted new instance: %#v", out)
 	d.SetId(buildId(out.ObjectMeta))
+
+	stateConf := &resource.StateChangeConf{
+		Target:  []string{"Running"},
+		Pending: []string{"Pending"},
+		Timeout: 5 * time.Minute,
+		Refresh: func() (interface{}, string, error) {
+			out, err := conn.Archon().Instances(metadata.Namespace).Get(metadata.Name)
+			if err != nil {
+				log.Printf("[ERROR] Received error: %#v", err)
+				return out, "Error", err
+			}
+
+			statusPhase := fmt.Sprintf("%v", out.Status.Phase)
+			log.Printf("[DEBUG] Instance %s status received: %#v", out.Name, statusPhase)
+			return out, statusPhase, nil
+		},
+	}
+	_, err = stateConf.WaitForState()
+	if err != nil {
+		lastWarnings, wErr := getLastWarningsForObject(conn, out.ObjectMeta, "Instance", 3)
+		if wErr != nil {
+			return wErr
+		}
+		return fmt.Errorf("%s%s", err, stringifyEvents(lastWarnings))
+	}
+	log.Printf("[INFO] Network %s created", out.Name)
 
 	return resourceArchonInstanceRead(d, meta)
 }

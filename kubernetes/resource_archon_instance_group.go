@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/helper/schema"
 	"k8s.io/apimachinery/pkg/api/errors"
 	pkgApi "k8s.io/apimachinery/pkg/types"
@@ -203,6 +204,17 @@ func resourceArchonInstanceGroupCreate(d *schema.ResourceData, meta interface{})
 	log.Printf("[INFO] Submitted new instance_group: %#v", out)
 	d.SetId(buildId(out.ObjectMeta))
 
+	log.Printf("[DEBUG] Waiting for instance group %s to schedule %d replicas",
+		d.Id(), out.Spec.Replicas)
+	// 10 mins should be sufficient for scheduling ~10k replicas
+	err = resource.Retry(d.Timeout(schema.TimeoutCreate),
+		waitForDesiredReplicasFunc(conn, out.GetNamespace(), out.GetName()))
+	if err != nil {
+		return err
+	}
+
+	log.Printf("[INFO] Submitted new instance group: %#v", out)
+
 	return resourceArchonInstanceGroupRead(d, meta)
 }
 
@@ -288,4 +300,24 @@ func resourceArchonInstanceGroupExists(d *schema.ResourceData, meta interface{})
 	}
 	log.Printf("[INFO] InstanceGroup %s exists", name)
 	return true, err
+}
+
+func waitForDesiredReplicasFunc(conn *archon.Clientset, ns, name string) resource.RetryFunc {
+	return func() *resource.RetryError {
+		ig, err := conn.Archon().InstanceGroups(ns).Get(name)
+		if err != nil {
+			return resource.NonRetryableError(err)
+		}
+
+		desiredReplicas := ig.Spec.Replicas
+		log.Printf("[DEBUG] Current number of labelled replicas of %q: %d (of %d)\n",
+			ig.GetName(), ig.Status.FullyLabeledReplicas, desiredReplicas)
+
+		if ig.Status.FullyLabeledReplicas == desiredReplicas {
+			return nil
+		}
+
+		return resource.RetryableError(fmt.Errorf("Waiting for %d replicas of %q to be scheduled (%d)",
+			desiredReplicas, ig.GetName(), ig.Status.FullyLabeledReplicas))
+	}
 }

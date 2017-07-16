@@ -8,10 +8,10 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	api "k8s.io/kubernetes/pkg/api/v1"
-	kubernetes "k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	archon "kubeup.com/archon/pkg/clientset"
 )
 
-func getLastWarningsForObject(conn *kubernetes.Clientset, metadata meta_v1.ObjectMeta, kind string, limit int) ([]api.Event, error) {
+func getLastWarningsForObject(conn *archon.Clientset, metadata meta_v1.ObjectMeta, kind string, limit int) ([]api.Event, error) {
 	fs := fields.Set(map[string]string{
 		"involvedObject.name":      metadata.Name,
 		"involvedObject.namespace": metadata.Namespace,
