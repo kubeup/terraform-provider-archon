@@ -1,14 +1,18 @@
 package kubernetes
 
 import (
+	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform/builtin/providers/google"
 	"github.com/hashicorp/terraform/config"
+	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/terraform"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var testAccProviders map[string]terraform.ResourceProvider
@@ -17,8 +21,8 @@ var testAccProvider *schema.Provider
 func init() {
 	testAccProvider = Provider().(*schema.Provider)
 	testAccProviders = map[string]terraform.ResourceProvider{
-		"kubernetes": testAccProvider,
-		"google":     google.Provider(),
+		"archon": testAccProvider,
+		"google": google.Provider(),
 	}
 }
 
@@ -167,10 +171,6 @@ func testAccPreCheck(t *testing.T) {
 				"KUBE_CLUSTER_CA_CERT_DATA",
 			}, ", "))
 	}
-
-	if os.Getenv("GOOGLE_PROJECT") == "" || os.Getenv("GOOGLE_REGION") == "" || os.Getenv("GOOGLE_ZONE") == "" {
-		t.Fatal("GOOGLE_PROJECT, GOOGLE_REGION and GOOGLE_ZONE must be set for acceptance tests")
-	}
 }
 
 type currentEnv struct {
@@ -184,4 +184,30 @@ type currentEnv struct {
 	ClientCertData    string
 	ClientKeyData     string
 	ClusterCACertData string
+}
+
+func testAccCheckMetaAnnotations(om *meta_v1.ObjectMeta, expected map[string]string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		if len(expected) == 0 && len(om.Annotations) == 0 {
+			return nil
+		}
+		if !reflect.DeepEqual(om.Annotations, expected) {
+			return fmt.Errorf("%s annotations don't match.\nExpected: %q\nGiven: %q",
+				om.Name, expected, om.Annotations)
+		}
+		return nil
+	}
+}
+
+func testAccCheckMetaLabels(om *meta_v1.ObjectMeta, expected map[string]string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		if len(expected) == 0 && len(om.Labels) == 0 {
+			return nil
+		}
+		if !reflect.DeepEqual(om.Labels, expected) {
+			return fmt.Errorf("%s labels don't match.\nExpected: %q\nGiven: %q",
+				om.Name, expected, om.Labels)
+		}
+		return nil
+	}
 }

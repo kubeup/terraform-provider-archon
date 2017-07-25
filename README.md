@@ -1,4 +1,4 @@
-# Terraform Provider
+# Archon Provider
 
 - Website: https://www.terraform.io
 - [![Gitter chat](https://badges.gitter.im/hashicorp-terraform/Lobby.png)](https://gitter.im/hashicorp-terraform/Lobby)
@@ -33,10 +33,6 @@ $ make build
 - [ ] Fill in for each provider
 
 ## Developing the Provider
-
-### Contributing Resources
-
-In order to prevent breaking changes and migration of user-created resources, resources included in this provider will be limited to `v1` APIs and not `alpha` or `beta`. You can find `v1` resources in the Kubernetes [API documentation](https://kubernetes.io/docs/reference/#api-reference) for the appropriate version of Kubernetes.
 
 ### Development Environment
 
